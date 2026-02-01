@@ -130,7 +130,69 @@ export const collectPrices = schedules.task({
       .insert(moverRecords)
       .select("id, coin_id, symbol, magnitude");
 
-    // 7. Trigger alerts (top 10 movers)
+    // 7. Make predictions for each mover (self-learning)
+    const { findSimilarEvents, makePrediction, calculateAccuracy } = await import("@/lib/prediction-engine");
+
+    // Get historical events for pattern matching
+    const { data: historicalEvents } = await supabase
+      .from("mover_events")
+      .select("coin_id, symbol, magnitude, move_type, market_cap, detected_at, metadata")
+      .order("detected_at", { ascending: false })
+      .limit(500);
+
+    // Get historical accuracy
+    const { data: pastPredictions } = await supabase
+      .from("predictions")
+      .select("predicted_direction, actual_change, status")
+      .neq("status", "pending");
+
+    const accuracyStats = calculateAccuracy(pastPredictions || []);
+    const historicalAccuracy = accuracyStats.total >= 10 ? accuracyStats.accuracy : null;
+
+    console.log(`Historical accuracy: ${historicalAccuracy ? (historicalAccuracy * 100).toFixed(1) + '%' : 'N/A'} (${accuracyStats.total} predictions)`);
+
+    // Make predictions for top movers
+    let predictionsMade = 0;
+    for (const mover of movers.slice(0, 10)) {
+      const eventId = insertedMovers?.find((im: { coin_id: string; id: string }) => im.coin_id === mover.coinId)?.id;
+      if (!eventId) continue;
+
+      const input = {
+        coinId: mover.coinId,
+        symbol: mover.symbol,
+        magnitude: mover.magnitude,
+        moveType: mover.moveType as "pump" | "dump",
+        marketCap: mover.marketCap,
+        volume24h: mover.volume24h,
+        rank: mover.rank,
+      };
+
+      // Add outcome_24h from metadata for historical events
+      const historyWithOutcomes = (historicalEvents || []).map((e: Record<string, unknown>) => ({
+        ...e,
+        outcome_24h: (e.metadata as Record<string, unknown>)?.outcome_24h as number | undefined,
+      }));
+
+      const similarEvents = findSimilarEvents(input, historyWithOutcomes);
+      const prediction = makePrediction(input, similarEvents, historicalAccuracy);
+
+      // Store prediction
+      await supabase.from("predictions").insert({
+        coin_id: mover.coinId,
+        mover_event_id: eventId,
+        predicted_direction: prediction.direction,
+        predicted_magnitude: Math.abs(mover.magnitude) * 0.5, // Predict half the move continues
+        confidence: prediction.confidence,
+        reasoning: prediction.reasoning,
+        horizon_hours: 24,
+        status: "pending",
+      });
+
+      predictionsMade++;
+      console.log(`Prediction for ${mover.symbol}: ${prediction.direction} (${(prediction.confidence * 100).toFixed(0)}% confidence)`);
+    }
+
+    // 8. Trigger alerts (top 10 movers)
     if (insertedMovers && insertedMovers.length > 0) {
       await sendAlerts.trigger({
         movers: movers.slice(0, 10).map((m) => ({
@@ -147,7 +209,7 @@ export const collectPrices = schedules.task({
       });
     }
 
-    // 8. Trigger research for top 5 movers
+    // 9. Trigger research for top 5 movers
     const maxResearch = parseInt(process.env.MAX_RESEARCH_PER_DAY || "20");
 
     // Check how many researches we've done today
@@ -172,7 +234,7 @@ export const collectPrices = schedules.task({
       }
     }
 
-    // 9. Update daily stats
+    // 10. Update daily stats
     const { data: existing } = await supabase
       .from("daily_stats")
       .select("*")
@@ -198,6 +260,8 @@ export const collectPrices = schedules.task({
       moversDetected: movers.length,
       alertsSent: Math.min(movers.length, 10),
       researchTriggered: moversToResearch.length,
+      predictionsMade,
+      historicalAccuracy: historicalAccuracy ? `${(historicalAccuracy * 100).toFixed(1)}%` : "N/A",
     };
   },
 });
