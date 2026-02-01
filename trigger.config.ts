@@ -4,6 +4,7 @@ export default defineConfig({
   project: "crypto-intel",
   runtime: "node",
   logLevel: "log",
+  maxDuration: 300, // 5 minutes max duration for tasks
   retries: {
     enabledInDev: true,
     default: {
