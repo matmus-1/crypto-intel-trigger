@@ -1,7 +1,7 @@
 import { defineConfig } from "@trigger.dev/sdk/v3";
 
 export default defineConfig({
-  project: "crypto-intel",
+  project: "proj_ujcxcclwbogssyqtyswn",
   runtime: "node",
   logLevel: "log",
   maxDuration: 300, // 5 minutes max duration for tasks
