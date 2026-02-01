@@ -47,7 +47,7 @@ export const evaluatePredictions = schedules.task({
     console.log(`Evaluating ${pendingPredictions.length} predictions`);
 
     // 2. Get current prices for the coins
-    const coinIds = [...new Set(pendingPredictions.map((p: { coin_id: string }) => p.coin_id))];
+    const coinIds = Array.from(new Set(pendingPredictions.map((p: { coin_id: string }) => p.coin_id)));
 
     // Fetch current prices from CoinGecko
     const priceUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(",")}&vs_currencies=usd&include_24hr_change=true`;
