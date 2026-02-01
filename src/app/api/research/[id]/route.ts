@@ -12,7 +12,10 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const { data: report, error } = await getSupabase()
+  // Get Supabase client
+  const supabase = await getSupabase();
+
+  const { data: report, error } = await supabase
     .from("research_reports")
     .select(`
       *,

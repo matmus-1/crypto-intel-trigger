@@ -13,27 +13,30 @@ export async function GET(request: NextRequest) {
   const since = new Date();
   since.setDate(since.getDate() - days);
 
+  // Get Supabase client
+  const supabase = await getSupabase();
+
   // Get daily stats
-  const { data: dailyStats } = await getSupabase()
+  const { data: dailyStats } = await supabase
     .from("daily_stats")
     .select("*")
     .gte("date", since.toISOString().split("T")[0])
     .order("date", { ascending: false });
 
   // Get total movers count
-  const { count: totalMovers } = await getSupabase()
+  const { count: totalMovers } = await supabase
     .from("mover_events")
     .select("*", { count: "exact", head: true })
     .gte("detected_at", since.toISOString());
 
   // Get research count
-  const { count: researchCount } = await getSupabase()
+  const { count: researchCount } = await supabase
     .from("research_reports")
     .select("*", { count: "exact", head: true })
     .gte("created_at", since.toISOString());
 
   // Get prediction accuracy
-  const { data: predictionsData } = await getSupabase()
+  const { data: predictionsData } = await supabase
     .from("predictions")
     .select("status")
     .gte("predicted_at", since.toISOString())

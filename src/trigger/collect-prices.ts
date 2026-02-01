@@ -18,6 +18,9 @@ export const collectPrices = schedules.task({
   run: async () => {
     console.log("Starting price collection...");
 
+    // Get Supabase client once at the start
+    const supabase = await getSupabaseAdmin();
+
     // 1. Fetch market data
     const maxCoins = parseInt(process.env.MAX_COINS || "1000");
     const snapshot = await coingecko.getAllMarketData(maxCoins);
@@ -36,7 +39,7 @@ export const collectPrices = schedules.task({
     // Batch upsert coins (100 at a time)
     for (let i = 0; i < coinRecords.length; i += 100) {
       const batch = coinRecords.slice(i, i + 100);
-      await getSupabaseAdmin().from("coins").upsert(batch, { onConflict: "id" });
+      await supabase.from("coins").upsert(batch, { onConflict: "id" });
     }
 
     // 3. Store price snapshots (top 500 only to save space)
@@ -54,7 +57,7 @@ export const collectPrices = schedules.task({
     // Batch insert price snapshots
     for (let i = 0; i < priceRecords.length; i += 100) {
       const batch = priceRecords.slice(i, i + 100);
-      await getSupabaseAdmin().from("price_snapshots").insert(batch);
+      await supabase.from("price_snapshots").insert(batch);
     }
 
     // 4. Detect movers
@@ -86,7 +89,7 @@ export const collectPrices = schedules.task({
       detected_at: event.detectedAt.toISOString(),
     }));
 
-    const { data: insertedMovers } = await getSupabaseAdmin()
+    const { data: insertedMovers } = await supabase
       .from("mover_events")
       .insert(moverRecords)
       .select("id, coin_id, symbol, magnitude");
@@ -113,7 +116,7 @@ export const collectPrices = schedules.task({
 
     // Check how many researches we've done today
     const today = new Date().toISOString().split("T")[0];
-    const { count } = await getSupabaseAdmin()
+    const { count } = await supabase
       .from("research_reports")
       .select("*", { count: "exact", head: true })
       .gte("created_at", today);
@@ -134,7 +137,25 @@ export const collectPrices = schedules.task({
     }
 
     // 8. Update daily stats
-    await updateDailyStats(movers.length);
+    const { data: existing } = await supabase
+      .from("daily_stats")
+      .select("*")
+      .eq("date", today)
+      .single();
+
+    if (existing) {
+      await supabase
+        .from("daily_stats")
+        .update({
+          total_movers: existing.total_movers + movers.length,
+        })
+        .eq("date", today);
+    } else {
+      await supabase.from("daily_stats").insert({
+        date: today,
+        total_movers: movers.length,
+      });
+    }
 
     return {
       coinsProcessed: snapshot.coins.length,
@@ -144,28 +165,3 @@ export const collectPrices = schedules.task({
     };
   },
 });
-
-async function updateDailyStats(moverCount: number) {
-  const today = new Date().toISOString().split("T")[0];
-
-  // Try to update existing record
-  const { data: existing } = await getSupabaseAdmin()
-    .from("daily_stats")
-    .select("*")
-    .eq("date", today)
-    .single();
-
-  if (existing) {
-    await getSupabaseAdmin()
-      .from("daily_stats")
-      .update({
-        total_movers: existing.total_movers + moverCount,
-      })
-      .eq("date", today);
-  } else {
-    await getSupabaseAdmin().from("daily_stats").insert({
-      date: today,
-      total_movers: moverCount,
-    });
-  }
-}

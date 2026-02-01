@@ -41,8 +41,11 @@ export const runResearch = task({
 
     console.log(`Running research for ${symbol} (${magnitude > 0 ? "+" : ""}${magnitude.toFixed(1)}%)`);
 
+    // Get Supabase client once at the start
+    const supabase = await getSupabaseAdmin();
+
     // 1. Get the mover event details
-    const { data: event } = await getSupabaseAdmin()
+    const { data: event } = await supabase
       .from("mover_events")
       .select("*")
       .eq("id", eventId)
@@ -126,7 +129,7 @@ Respond ONLY with the JSON, no additional text.`;
     }
 
     // 6. Store research report
-    await getSupabaseAdmin().from("research_reports").insert({
+    await supabase.from("research_reports").insert({
       mover_event_id: eventId,
       catalyst: analysis.catalyst,
       catalyst_confidence: analysis.catalyst_confidence,
@@ -147,12 +150,20 @@ Respond ONLY with the JSON, no additional text.`;
       keyFactors: analysis.key_factors,
     });
 
-    // 8. Update daily stats
+    // 8. Update daily stats - increment research_count
     const today = new Date().toISOString().split("T")[0];
-    await getSupabaseAdmin()
+    const { data: stats } = await supabase
       .from("daily_stats")
-      .update({ research_count: getSupabaseAdmin().rpc("increment", { x: 1 }) })
-      .eq("date", today);
+      .select("research_count")
+      .eq("date", today)
+      .single();
+
+    if (stats) {
+      await supabase
+        .from("daily_stats")
+        .update({ research_count: (stats.research_count || 0) + 1 })
+        .eq("date", today);
+    }
 
     return {
       eventId,

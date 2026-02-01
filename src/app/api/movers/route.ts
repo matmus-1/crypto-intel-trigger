@@ -31,8 +31,11 @@ export async function GET(request: NextRequest) {
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
+  // Get Supabase client
+  const supabase = await getSupabase();
+
   // Build query
-  let query = getSupabase()
+  let query = supabase
     .from("mover_events")
     .select("*")
     .gte("detected_at", since.toISOString())
