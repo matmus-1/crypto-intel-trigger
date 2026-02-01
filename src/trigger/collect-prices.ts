@@ -168,8 +168,21 @@ export const collectPrices = schedules.task({
       };
 
       // Add outcome_24h from metadata for historical events
-      const historyWithOutcomes = (historicalEvents || []).map((e: Record<string, unknown>) => ({
-        ...e,
+      const historyWithOutcomes = (historicalEvents || []).map((e: {
+        coin_id: string;
+        symbol: string;
+        magnitude: number;
+        move_type: string;
+        market_cap: number;
+        detected_at: string;
+        metadata: Record<string, unknown> | null;
+      }) => ({
+        coin_id: e.coin_id,
+        symbol: e.symbol,
+        magnitude: e.magnitude,
+        move_type: e.move_type,
+        market_cap: e.market_cap,
+        detected_at: e.detected_at,
         outcome_24h: (e.metadata as Record<string, unknown>)?.outcome_24h as number | undefined,
       }));
 
