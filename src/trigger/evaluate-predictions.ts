@@ -144,7 +144,7 @@ export const evaluatePredictions = schedules.task({
       await supabase
         .from("mover_events")
         .update({
-          metadata: supabase.rpc ? undefined : { outcome_24h: actualChange },
+          metadata: { outcome_24h: actualChange },
         })
         .eq("id", prediction.mover_event_id);
     }
