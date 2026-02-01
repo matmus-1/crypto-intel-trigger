@@ -73,10 +73,10 @@ export const collectPrices = schedules.task({
     }
 
     // 4. Detect movers
-    const movers = detectMovers(snapshot);
-    console.log(`Detected ${movers.length} significant movers`);
+    const allMovers = detectMovers(snapshot);
+    console.log(`Detected ${allMovers.length} significant movers`);
 
-    if (movers.length === 0) {
+    if (allMovers.length === 0) {
       return {
         coinsProcessed: snapshot.coins.length,
         moversDetected: 0,
@@ -84,7 +84,31 @@ export const collectPrices = schedules.task({
       };
     }
 
-    // 5. Store mover events
+    // 5. Filter out coins we've already alerted on recently (4 hour cooldown)
+    const cooldownHours = parseInt(process.env.ALERT_COOLDOWN_HOURS || "4");
+    const cooldownTime = new Date();
+    cooldownTime.setHours(cooldownTime.getHours() - cooldownHours);
+
+    const { data: recentAlerts } = await supabase
+      .from("mover_events")
+      .select("coin_id")
+      .gte("detected_at", cooldownTime.toISOString());
+
+    const recentCoinIds = new Set((recentAlerts || []).map((a: { coin_id: string }) => a.coin_id));
+    const movers = allMovers.filter((m) => !recentCoinIds.has(m.coinId));
+
+    console.log(`After cooldown filter: ${movers.length} new movers (filtered ${allMovers.length - movers.length})`);
+
+    if (movers.length === 0) {
+      return {
+        coinsProcessed: snapshot.coins.length,
+        moversDetected: allMovers.length,
+        newMovers: 0,
+        alertsSent: 0,
+      };
+    }
+
+    // 6. Store mover events (only new ones)
     const moverRecords = movers.map((event) => ({
       coin_id: event.coinId,
       symbol: event.symbol,
@@ -106,7 +130,7 @@ export const collectPrices = schedules.task({
       .insert(moverRecords)
       .select("id, coin_id, symbol, magnitude");
 
-    // 6. Trigger alerts (top 10 movers)
+    // 7. Trigger alerts (top 10 movers)
     if (insertedMovers && insertedMovers.length > 0) {
       await sendAlerts.trigger({
         movers: movers.slice(0, 10).map((m) => ({
@@ -123,7 +147,7 @@ export const collectPrices = schedules.task({
       });
     }
 
-    // 7. Trigger research for top 5 movers
+    // 8. Trigger research for top 5 movers
     const maxResearch = parseInt(process.env.MAX_RESEARCH_PER_DAY || "20");
 
     // Check how many researches we've done today
@@ -148,7 +172,7 @@ export const collectPrices = schedules.task({
       }
     }
 
-    // 8. Update daily stats
+    // 9. Update daily stats
     const { data: existing } = await supabase
       .from("daily_stats")
       .select("*")
