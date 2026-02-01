@@ -151,8 +151,10 @@ export const collectPrices = schedules.task({
 
     console.log(`Historical accuracy: ${historicalAccuracy ? (historicalAccuracy * 100).toFixed(1) + '%' : 'N/A'} (${accuracyStats.total} predictions)`);
 
-    // Make predictions for top movers
+    // Make predictions for top movers and store them for alerts
     let predictionsMade = 0;
+    const predictionMap = new Map<string, { direction: "up" | "down"; confidence: number; reasoning: string }>();
+
     for (const mover of movers.slice(0, 10)) {
       const eventId = insertedMovers?.find((im: { coin_id: string; id: string }) => im.coin_id === mover.coinId)?.id;
       if (!eventId) continue;
@@ -189,7 +191,14 @@ export const collectPrices = schedules.task({
       const similarEvents = findSimilarEvents(input, historyWithOutcomes);
       const prediction = makePrediction(input, similarEvents, historicalAccuracy);
 
-      // Store prediction
+      // Store prediction in map for alerts
+      predictionMap.set(mover.coinId, {
+        direction: prediction.direction,
+        confidence: prediction.confidence,
+        reasoning: prediction.reasoning,
+      });
+
+      // Store prediction in database
       await supabase.from("predictions").insert({
         coin_id: mover.coinId,
         mover_event_id: eventId,
@@ -205,7 +214,7 @@ export const collectPrices = schedules.task({
       console.log(`Prediction for ${mover.symbol}: ${prediction.direction} (${(prediction.confidence * 100).toFixed(0)}% confidence)`);
     }
 
-    // 8. Trigger alerts (top 10 movers)
+    // 8. Trigger alerts (top 10 movers) with predictions
     if (insertedMovers && insertedMovers.length > 0) {
       await sendAlerts.trigger({
         movers: movers.slice(0, 10).map((m) => ({
@@ -218,7 +227,9 @@ export const collectPrices = schedules.task({
           volume24h: m.volume24h,
           btcRelative: m.btcRelative,
           rank: m.rank,
+          prediction: predictionMap.get(m.coinId),
         })),
+        historicalAccuracy: historicalAccuracy ? `${(historicalAccuracy * 100).toFixed(1)}%` : undefined,
       });
     }
 
