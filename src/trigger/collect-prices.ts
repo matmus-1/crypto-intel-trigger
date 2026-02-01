@@ -25,7 +25,7 @@ async function createSupabaseClient() {
 export const collectPrices = schedules.task({
   id: "collect-prices",
   // Run every 5 minutes
-  cron: "*/5 * * * *",
+  cron: "0 */6 * * *",
 
   run: async () => {
     console.log("Starting price collection...");
