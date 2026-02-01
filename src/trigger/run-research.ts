@@ -4,8 +4,6 @@
  */
 
 import { task } from "@trigger.dev/sdk/v3";
-import Anthropic from "@anthropic-ai/sdk";
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendResearchAlert } from "@/lib/telegram";
 
 interface ResearchPayload {
@@ -30,6 +28,23 @@ interface ResearchResult {
   recommended_action: string;
 }
 
+// Create Supabase client inline to avoid import-time initialization
+async function createSupabaseClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+// Create Anthropic client inline
+async function createAnthropicClient() {
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
+}
+
 export const runResearch = task({
   id: "run-research",
   retry: {
@@ -37,12 +52,13 @@ export const runResearch = task({
   },
 
   run: async (payload: ResearchPayload) => {
-    const { eventId, coinId, symbol, magnitude } = payload;
+    const { eventId, symbol, magnitude } = payload;
 
     console.log(`Running research for ${symbol} (${magnitude > 0 ? "+" : ""}${magnitude.toFixed(1)}%)`);
 
-    // Get Supabase client once at the start
-    const supabase = await getSupabaseAdmin();
+    // Get clients
+    const supabase = await createSupabaseClient();
+    const anthropic = await createAnthropicClient();
 
     // 1. Get the mover event details
     const { data: event } = await supabase
@@ -62,10 +78,6 @@ export const runResearch = task({
     const context = buildContext(event, newsArticles);
 
     // 4. Call Claude API
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
     const systemPrompt = `You are a cryptocurrency market analyst specializing in identifying catalysts for significant price movements. Your job is to analyze market events and provide clear, actionable insights.
 
 When analyzing a crypto move, you should:

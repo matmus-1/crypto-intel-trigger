@@ -6,9 +6,17 @@
 import { schedules } from "@trigger.dev/sdk/v3";
 import { coingecko } from "@/lib/coingecko";
 import { detectMovers } from "@/lib/mover-detector";
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendAlerts } from "./send-alerts";
 import { runResearch } from "./run-research";
+
+// Create Supabase client inline to avoid import-time initialization
+async function createSupabaseClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export const collectPrices = schedules.task({
   id: "collect-prices",
@@ -18,8 +26,8 @@ export const collectPrices = schedules.task({
   run: async () => {
     console.log("Starting price collection...");
 
-    // Get Supabase client once at the start
-    const supabase = await getSupabaseAdmin();
+    // Get Supabase client
+    const supabase = await createSupabaseClient();
 
     // 1. Fetch market data
     const maxCoins = parseInt(process.env.MAX_COINS || "1000");
