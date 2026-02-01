@@ -6,7 +6,7 @@
 import { schedules } from "@trigger.dev/sdk/v3";
 import { coingecko } from "@/lib/coingecko";
 import { detectMovers } from "@/lib/mover-detector";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendAlerts } from "./send-alerts";
 import { runResearch } from "./run-research";
 
@@ -36,7 +36,7 @@ export const collectPrices = schedules.task({
     // Batch upsert coins (100 at a time)
     for (let i = 0; i < coinRecords.length; i += 100) {
       const batch = coinRecords.slice(i, i + 100);
-      await supabaseAdmin.from("coins").upsert(batch, { onConflict: "id" });
+      await getSupabaseAdmin().from("coins").upsert(batch, { onConflict: "id" });
     }
 
     // 3. Store price snapshots (top 500 only to save space)
@@ -54,7 +54,7 @@ export const collectPrices = schedules.task({
     // Batch insert price snapshots
     for (let i = 0; i < priceRecords.length; i += 100) {
       const batch = priceRecords.slice(i, i + 100);
-      await supabaseAdmin.from("price_snapshots").insert(batch);
+      await getSupabaseAdmin().from("price_snapshots").insert(batch);
     }
 
     // 4. Detect movers
@@ -163,7 +163,7 @@ async function updateDailyStats(moverCount: number) {
       })
       .eq("date", today);
   } else {
-    await supabaseAdmin.from("daily_stats").insert({
+    await getSupabaseAdmin().from("daily_stats").insert({
       date: today,
       total_movers: moverCount,
     });

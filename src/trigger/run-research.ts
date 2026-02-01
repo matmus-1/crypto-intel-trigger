@@ -5,7 +5,7 @@
 
 import { task } from "@trigger.dev/sdk/v3";
 import Anthropic from "@anthropic-ai/sdk";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendResearchAlert } from "@/lib/telegram";
 
 interface ResearchPayload {
@@ -126,7 +126,7 @@ Respond ONLY with the JSON, no additional text.`;
     }
 
     // 6. Store research report
-    await supabaseAdmin.from("research_reports").insert({
+    await getSupabaseAdmin().from("research_reports").insert({
       mover_event_id: eventId,
       catalyst: analysis.catalyst,
       catalyst_confidence: analysis.catalyst_confidence,
@@ -151,7 +151,7 @@ Respond ONLY with the JSON, no additional text.`;
     const today = new Date().toISOString().split("T")[0];
     await supabaseAdmin
       .from("daily_stats")
-      .update({ research_count: supabaseAdmin.rpc("increment", { x: 1 }) })
+      .update({ research_count: getSupabaseAdmin().rpc("increment", { x: 1 }) })
       .eq("date", today);
 
     return {

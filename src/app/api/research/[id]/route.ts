@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const { data: report, error } = await supabase
+  const { data: report, error } = await getSupabase()
     .from("research_reports")
     .select(`
       *,

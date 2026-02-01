@@ -25,24 +25,3 @@ export function getSupabaseAdmin(): SupabaseClient {
   }
   return _supabaseAdmin;
 }
-
-// Backwards compatibility - these will be initialized lazily on first access
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabase: any = new Proxy({}, {
-  get(_, prop) {
-    const client = getSupabase();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = (client as any)[prop];
-    return typeof value === 'function' ? value.bind(client) : value;
-  }
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabaseAdmin: any = new Proxy({}, {
-  get(_, prop) {
-    const client = getSupabaseAdmin();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const value = (client as any)[prop];
-    return typeof value === 'function' ? value.bind(client) : value;
-  }
-});

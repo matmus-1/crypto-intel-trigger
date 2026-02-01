@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 interface MoverEvent {
   id: string;
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   since.setHours(since.getHours() - hours);
 
   // Build query
-  let query = supabase
+  let query = getSupabase()
     .from("mover_events")
     .select("*")
     .gte("detected_at", since.toISOString())
