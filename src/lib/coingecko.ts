@@ -27,11 +27,15 @@ export interface MarketSnapshot {
 
 class CoinGeckoClient {
   private apiKey: string | null;
+  private isPro: boolean;
   private baseUrl: string;
 
   constructor() {
     this.apiKey = process.env.COINGECKO_API_KEY || null;
-    this.baseUrl = this.apiKey ? PRO_BASE_URL : BASE_URL;
+    // Pro keys typically don't start with CG- or are longer
+    // Demo keys start with CG- and use the regular API
+    this.isPro = this.apiKey ? !this.apiKey.startsWith("CG-") : false;
+    this.baseUrl = this.isPro ? PRO_BASE_URL : BASE_URL;
   }
 
   private async fetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
@@ -44,8 +48,13 @@ class CoinGeckoClient {
       Accept: "application/json",
     };
 
+    // Use appropriate header based on key type
     if (this.apiKey) {
-      headers["x-cg-pro-api-key"] = this.apiKey;
+      if (this.isPro) {
+        headers["x-cg-pro-api-key"] = this.apiKey;
+      } else {
+        headers["x-cg-demo-api-key"] = this.apiKey;
+      }
     }
 
     const response = await fetch(url.toString(), { headers });
@@ -54,6 +63,8 @@ class CoinGeckoClient {
       if (response.status === 429) {
         throw new Error("Rate limited by CoinGecko. Try again later.");
       }
+      const errorText = await response.text();
+      console.error("CoinGecko error response:", errorText);
       throw new Error(`CoinGecko API error: ${response.status}`);
     }
 
@@ -97,8 +108,8 @@ class CoinGeckoClient {
       allCoins.push(...filtered);
       page++;
 
-      // Rate limiting pause
-      await new Promise((r) => setTimeout(r, 500));
+      // Rate limiting pause (Demo API has lower limits)
+      await new Promise((r) => setTimeout(r, 1500));
     }
 
     // Get BTC change for relative calculations
