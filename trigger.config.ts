@@ -4,7 +4,7 @@ export default defineConfig({
   project: "proj_ujcxcclwbogssyqtyswn",
   runtime: "node",
   logLevel: "log",
-  maxDuration: 300, // 5 minutes max duration for tasks
+  maxDuration: 300,
   retries: {
     enabledInDev: true,
     default: {
@@ -16,4 +16,10 @@ export default defineConfig({
     },
   },
   dirs: ["./src/trigger"],
+  build: {
+    external: [
+      "@supabase/supabase-js",
+      "@anthropic-ai/sdk",
+    ],
+  },
 });

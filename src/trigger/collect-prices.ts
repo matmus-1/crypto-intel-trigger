@@ -11,11 +11,15 @@ import { runResearch } from "./run-research";
 
 // Create Supabase client inline to avoid import-time initialization
 async function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error("Supabase credentials not configured");
+  }
+
   const { createClient } = await import("@supabase/supabase-js");
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  return createClient(url, key);
 }
 
 export const collectPrices = schedules.task({
