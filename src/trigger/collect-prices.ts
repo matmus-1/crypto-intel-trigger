@@ -95,7 +95,7 @@ export const collectPrices = schedules.task({
     if (insertedMovers && insertedMovers.length > 0) {
       await sendAlerts.trigger({
         movers: movers.slice(0, 10).map((m) => ({
-          id: insertedMovers.find((im) => im.coin_id === m.coinId)?.id,
+          id: insertedMovers.find((im: { coin_id: string; id: string }) => im.coin_id === m.coinId)?.id,
           symbol: m.symbol,
           name: m.name,
           magnitude: m.magnitude,
@@ -122,7 +122,7 @@ export const collectPrices = schedules.task({
     const moversToResearch = movers.slice(0, Math.min(5, remainingResearch));
 
     for (const mover of moversToResearch) {
-      const eventId = insertedMovers?.find((im) => im.coin_id === mover.coinId)?.id;
+      const eventId = insertedMovers?.find((im: { coin_id: string; id: string }) => im.coin_id === mover.coinId)?.id;
       if (eventId) {
         await runResearch.trigger({
           eventId,
