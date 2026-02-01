@@ -33,17 +33,19 @@ export async function GET(request: NextRequest) {
     .gte("created_at", since.toISOString());
 
   // Get prediction accuracy
-  const { data: predictions } = await supabase
+  const { data: predictionsData } = await supabase
     .from("predictions")
     .select("status")
     .gte("predicted_at", since.toISOString())
     .neq("status", "pending");
 
+  const predictions = (predictionsData || []) as Array<{ status: string }>;
+
   const predictionStats = {
-    total: predictions?.length || 0,
-    correct: predictions?.filter((p) => p.status === "correct").length || 0,
-    incorrect: predictions?.filter((p) => p.status === "incorrect").length || 0,
-    partial: predictions?.filter((p) => p.status === "partial").length || 0,
+    total: predictions.length,
+    correct: predictions.filter((p) => p.status === "correct").length,
+    incorrect: predictions.filter((p) => p.status === "incorrect").length,
+    partial: predictions.filter((p) => p.status === "partial").length,
   };
 
   const accuracy =

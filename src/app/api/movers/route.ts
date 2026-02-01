@@ -6,6 +6,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+interface MoverEvent {
+  id: string;
+  coin_id: string;
+  symbol: string;
+  name: string;
+  move_type: string;
+  magnitude: number;
+  price: number;
+  market_cap: number;
+  volume_24h: number;
+  detected_at: string;
+  [key: string]: unknown;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
@@ -32,14 +46,16 @@ export async function GET(request: NextRequest) {
     query = query.lt("magnitude", 0);
   }
 
-  const { data: movers, error } = await query;
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const movers = (data || []) as MoverEvent[];
+
   // Sort by absolute magnitude
-  const sorted = (movers || []).sort(
+  const sorted = movers.sort(
     (a, b) => Math.abs(b.magnitude) - Math.abs(a.magnitude)
   );
 
