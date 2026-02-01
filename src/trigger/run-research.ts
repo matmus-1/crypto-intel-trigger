@@ -42,7 +42,7 @@ export const runResearch = task({
     console.log(`Running research for ${symbol} (${magnitude > 0 ? "+" : ""}${magnitude.toFixed(1)}%)`);
 
     // 1. Get the mover event details
-    const { data: event } = await supabaseAdmin
+    const { data: event } = await getSupabaseAdmin()
       .from("mover_events")
       .select("*")
       .eq("id", eventId)
@@ -149,7 +149,7 @@ Respond ONLY with the JSON, no additional text.`;
 
     // 8. Update daily stats
     const today = new Date().toISOString().split("T")[0];
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from("daily_stats")
       .update({ research_count: getSupabaseAdmin().rpc("increment", { x: 1 }) })
       .eq("date", today);

@@ -86,7 +86,7 @@ export const collectPrices = schedules.task({
       detected_at: event.detectedAt.toISOString(),
     }));
 
-    const { data: insertedMovers } = await supabaseAdmin
+    const { data: insertedMovers } = await getSupabaseAdmin()
       .from("mover_events")
       .insert(moverRecords)
       .select("id, coin_id, symbol, magnitude");
@@ -113,7 +113,7 @@ export const collectPrices = schedules.task({
 
     // Check how many researches we've done today
     const today = new Date().toISOString().split("T")[0];
-    const { count } = await supabaseAdmin
+    const { count } = await getSupabaseAdmin()
       .from("research_reports")
       .select("*", { count: "exact", head: true })
       .gte("created_at", today);
@@ -149,14 +149,14 @@ async function updateDailyStats(moverCount: number) {
   const today = new Date().toISOString().split("T")[0];
 
   // Try to update existing record
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await getSupabaseAdmin()
     .from("daily_stats")
     .select("*")
     .eq("date", today)
     .single();
 
   if (existing) {
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from("daily_stats")
       .update({
         total_movers: existing.total_movers + moverCount,
